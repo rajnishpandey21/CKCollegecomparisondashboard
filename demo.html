@@ -48,14 +48,23 @@
       border: 1px solid #ccc;
       font-family: 'Poppins', sans-serif;
     }
-    #feesFilter {
-  padding: 10px;
-  font-size: 14px;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  font-family: 'Poppins', sans-serif;
-}
 
+    #feesFilter {
+      padding: 10px;
+      font-size: 14px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .btech-filter-label {
+      color: #fff;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: 10px;
+    }
 
     .controls .or-text {
       font-weight: bold;
@@ -164,7 +173,6 @@
       border: 2px solid #4caf50;
     }
 
-    /* Interest Modal Styling */
     #interestModal {
       display: none;
       position: fixed;
@@ -234,14 +242,20 @@
     <select id="stateSelect"><option value="">Select State</option></select>
     <select id="categorySelect" disabled><option value="">Select Category</option></select>
     <select id="feesFilter" disabled>
-        <option value="">Select Fees</option>
-        <option value="0-50000">0–50K</option>
-        <option value="50000-100000">50K–1L</option>
-        <option value="100000-300000">1L–3L</option>
-        <option value="300000-500000">3L–5L</option>
-        <option value="500000+">5L+</option>
-      </select>
-      
+      <option value="">Select Fees</option>
+      <option value="0-50000">0–50K</option>
+      <option value="50000-100000">50K–1L</option>
+      <option value="100000-300000">1L–3L</option>
+      <option value="300000-500000">3L–5L</option>
+      <option value="500000+">5L+</option>
+    </select>
+
+    <!-- ✅ B.Tech Only Checkbox -->
+    <label class="btech-filter-label">
+      <input type="checkbox" id="btechOnly" />
+      Only show B.Tech courses
+    </label>
+
     <button id="resetBtn">Reset Filters</button>
   </div>
 
@@ -284,7 +298,7 @@
     </div>
   </div>
   <script>
-    const collegesData = [
+      const collegesData = [
     {
       "college_id": "C001",
       "college_name": "ADAMAS UNIVERSITY",
@@ -835,8 +849,7 @@
       "usp": "CRM"
     }
   ];
-    
-    const coursesData = [
+  const coursesData = [
  {
   "college_id": "C001",
   "course_id": "CR021",
@@ -22438,8 +22451,7 @@
   "fees_per_year": 100000
  }
 ];
-    
-    const categoriesData = [
+  const categoriesData = [
   {
     "college_id": "C001",
     "category": "Others"
@@ -23265,8 +23277,7 @@
     "category": "Medical"
   }
 ];
-    
-    const placementsData = [
+  const placementsData =[
  {
   "college_id": "C001",
   "placement_percentage": 0.8,
@@ -23634,10 +23645,9 @@
   "highest_ctc": 5400000
  }
 ];
-    
     let selectedColleges = [];
     const interested = new Set();
-    
+  
     const stateSelect = document.getElementById("stateSelect");
     const categorySelect = document.getElementById("categorySelect");
     const resetBtn = document.getElementById("resetBtn");
@@ -23645,26 +23655,31 @@
     const collegeList = document.getElementById("collegeList");
     const comparisonSection = document.getElementById("comparisonSection");
     const promptMessage = document.getElementById("promptMessage");
-    
+    const btechOnlyCheckbox = document.getElementById("btechOnly");
+  
     const formatINR = (value) =>
       isNaN(value) ? value : Number(value).toLocaleString('en-IN');
-
-      function parseFeesRange(value) {
-  if (value === "500000+") return [500000, Infinity];
-  const [min, max] = value.split('-').map(Number);
-  return [min, max];
-}
-
-function doesCollegeMatchFees(collegeId, category, [min, max]) {
-  return coursesData.some(course =>
-    course.college_id === collegeId &&
-    course.category === category &&
-    course.fees_per_year >= min &&
-    course.fees_per_year <= max
-  );
-}
-
-    
+  
+    function parseFeesRange(value) {
+      if (value === "500000+") return [500000, Infinity];
+      const [min, max] = value.split('-').map(Number);
+      return [min, max];
+    }
+  
+    function isBtechCourse(course) {
+      return course.course_name.toLowerCase().includes("b.tech");
+    }
+  
+    function doesCollegeMatchFees(collegeId, category, [min, max], btechOnly) {
+      return coursesData.some(course =>
+        course.college_id === collegeId &&
+        course.category === category &&
+        (!btechOnly || isBtechCourse(course)) &&
+        course.fees_per_year >= min &&
+        course.fees_per_year <= max
+      );
+    }
+  
     function populateStates() {
       const states = [...new Set(collegesData.map(c => c.state))].sort();
       states.forEach(state => {
@@ -23674,7 +23689,7 @@ function doesCollegeMatchFees(collegeId, category, [min, max]) {
         stateSelect.appendChild(opt);
       });
     }
-    
+  
     function populateCategories() {
       categorySelect.innerHTML = `<option value="">Select Category</option>`;
       ["Engineering", "Management", "Medical", "Others"].forEach(cat => {
@@ -23684,41 +23699,44 @@ function doesCollegeMatchFees(collegeId, category, [min, max]) {
         categorySelect.appendChild(opt);
       });
     }
-    
+  
     function updateCollegeList() {
-  const state = stateSelect.value;
-  const category = categorySelect.value;
-  const feesRange = parseFeesRange(feesFilter.value);
-  const query = searchBox.value.toLowerCase();
-  selectedColleges = [];
-  comparisonSection.innerHTML = "";
-
-  let resultColleges;
-
-  if (!state && !category) {
-    resultColleges = collegesData.filter(col =>
-      col.college_name.toLowerCase().includes(query));
-  } else {
-    resultColleges = collegesData.filter(col => {
-      const belongsToState = col.state === state;
-      const isInCategory = categoriesData.some(cat =>
-        cat.college_id === col.college_id && cat.category === category);
-      const matchesSearch = col.college_name.toLowerCase().includes(query);
-      const hasCourses = coursesData.some(course =>
-        course.college_id === col.college_id && course.category === category);
-      const matchesFees = !feesFilter.value || doesCollegeMatchFees(col.college_id, category, feesRange);
-
-      return belongsToState && isInCategory && matchesSearch && hasCourses && matchesFees;
-    });
-  }
-
-  renderCollegeCards(resultColleges, category);
-}
-
-    
+      const state = stateSelect.value;
+      const category = categorySelect.value;
+      const feesRange = parseFeesRange(feesFilter.value);
+      const query = searchBox.value.toLowerCase();
+      const btechOnly = btechOnlyCheckbox.checked;
+  
+      selectedColleges = [];
+      comparisonSection.innerHTML = "";
+  
+      let resultColleges;
+  
+      if (!state && !category) {
+        resultColleges = collegesData.filter(col =>
+          col.college_name.toLowerCase().includes(query));
+      } else {
+        resultColleges = collegesData.filter(col => {
+          const belongsToState = col.state === state;
+          const isInCategory = categoriesData.some(cat =>
+            cat.college_id === col.college_id && cat.category === category);
+          const matchesSearch = col.college_name.toLowerCase().includes(query);
+          const hasCourses = coursesData.some(course =>
+            course.college_id === col.college_id &&
+            course.category === category &&
+            (!btechOnly || isBtechCourse(course)));
+          const matchesFees = !feesFilter.value || doesCollegeMatchFees(col.college_id, category, feesRange, btechOnly);
+  
+          return belongsToState && isInCategory && matchesSearch && hasCourses && matchesFees;
+        });
+      }
+  
+      renderCollegeCards(resultColleges, category);
+    }
+  
     function renderCollegeCards(colleges, category) {
       collegeList.innerHTML = "";
-    
+  
       if (colleges.length === 0) {
         const msg = document.createElement("div");
         msg.className = "no-college-message";
@@ -23726,7 +23744,7 @@ function doesCollegeMatchFees(collegeId, category, [min, max]) {
         collegeList.appendChild(msg);
         return;
       }
-    
+  
       colleges.forEach(col => {
         const div = document.createElement("div");
         div.className = "college-card";
@@ -23741,39 +23759,39 @@ function doesCollegeMatchFees(collegeId, category, [min, max]) {
         collegeList.appendChild(div);
       });
     }
-    
-    window.selectCollege = function(collegeId, category) {
+  
+    window.selectCollege = function (collegeId, category) {
       if (selectedColleges.length >= 4) selectedColleges.shift();
       selectedColleges.push({ collegeId, category });
       renderComparison();
     };
-    
+  
     function renderComparison() {
       comparisonSection.innerHTML = "";
-    
+  
       selectedColleges.forEach(({ collegeId, category }) => {
         const col = collegesData.find(c => c.college_id === collegeId);
         const place = placementsData.find(p => p.college_id === collegeId);
         const filteredCourses = category
           ? coursesData.filter(c => c.college_id === collegeId && c.category === category)
           : coursesData.filter(c => c.college_id === collegeId);
-    
+  
         const courseOptions = filteredCourses.map(c =>
           `<option value="${c.course_id}">${c.course_name}</option>`).join("");
         const defaultCourse = filteredCourses[0];
-    
+  
         const box = document.createElement("div");
         box.className = "comparison-box";
         box.innerHTML = `
           <h4 class="college-title">${col.college_name}</h4>
-    
+  
           <div class="section-header">📘 Basic Information</div>
           <div class="section-card">
             <p><strong>Established:</strong> ${col.established_year}<br>
                <strong>Ownership:</strong> ${col.ownership}<br>
                <strong>Website:</strong> <a href="${col.website}" target="_blank">${col.website}</a></p>
           </div>
-    
+  
           <div class="section-header">🎓 Course Details</div>
           <div class="section-card">
             <label><strong>Course:</strong></label>
@@ -23782,7 +23800,7 @@ function doesCollegeMatchFees(collegeId, category, [min, max]) {
             </select>
             <div id="course-${collegeId}">${renderCourseDetails(defaultCourse)}</div>
           </div>
-    
+  
           <div class="section-header">💼 Placement</div>
           <div class="section-card">
             <p><strong>Placement:</strong><br>
@@ -23790,7 +23808,7 @@ function doesCollegeMatchFees(collegeId, category, [min, max]) {
                Highest: ₹${formatINR(place?.highest_ctc)}<br>
                Placement %: ${place?.placement_percentage * 100}%</p>
           </div>
-    
+  
           <div class="section-header">Bit.ly or NPF Link</div>
           <div class="section-card">
             <p>${col.usp}</p>
@@ -23802,8 +23820,8 @@ function doesCollegeMatchFees(collegeId, category, [min, max]) {
         comparisonSection.appendChild(box);
       });
     }
-    
-    window.updateCourseDetails = function(selectElem, collegeId, category) {
+  
+    window.updateCourseDetails = function (selectElem, collegeId, category) {
       const selectedCourseId = selectElem.value;
       const scopedCourses = category
         ? coursesData.filter(c => c.college_id === collegeId && c.category === category)
@@ -23812,7 +23830,7 @@ function doesCollegeMatchFees(collegeId, category, [min, max]) {
       const container = document.getElementById(`course-${collegeId}`);
       container.innerHTML = renderCourseDetails(course);
     };
-    
+  
     function renderCourseDetails(course) {
       return `<p><strong>Category:</strong> ${course.category}<br>
                  <strong>Course Name:</strong> ${course.course_name}<br>
@@ -23821,24 +23839,24 @@ function doesCollegeMatchFees(collegeId, category, [min, max]) {
                  <strong>Mode:</strong> ${course.mode}<br>
                  <strong>Fees/year:</strong> ₹${formatINR(course.fees_per_year)}</p>`;
     }
-    
+  
     function resetFilters() {
-  stateSelect.value = "";
-  categorySelect.innerHTML = `<option value="">Select Category</option>`;
-  categorySelect.disabled = true;
-  feesFilter.value = "";
-  feesFilter.disabled = true;
-  searchBox.value = "";
-  collegeList.innerHTML = "";
-  comparisonSection.innerHTML = "";
-  promptMessage.style.display = "none";
-  selectedColleges = [];
-}
-
-    
+      stateSelect.value = "";
+      categorySelect.innerHTML = `<option value="">Select Category</option>`;
+      categorySelect.disabled = true;
+      feesFilter.value = "";
+      feesFilter.disabled = true;
+      searchBox.value = "";
+      btechOnlyCheckbox.checked = false;
+      collegeList.innerHTML = "";
+      comparisonSection.innerHTML = "";
+      promptMessage.style.display = "none";
+      selectedColleges = [];
+    }
+  
     function openInterestModal(collegeId, collegeName) {
       document.getElementById('collegeName').value = collegeName;
-    
+  
       const courseSelect = document.getElementById('courseSelect');
       courseSelect.innerHTML = '';
       const relevantCourses = coursesData.filter(course => course.college_id === collegeId);
@@ -23848,18 +23866,18 @@ function doesCollegeMatchFees(collegeId, category, [min, max]) {
         opt.textContent = course.course_name;
         courseSelect.appendChild(opt);
       });
-    
+  
       document.getElementById('interestModal').style.display = 'flex';
     }
-    
+  
     function closeModal() {
       document.getElementById('interestModal').style.display = 'none';
       document.getElementById('interestForm').reset();
     }
-    
-    document.getElementById('interestForm').addEventListener('submit', function(e) {
+  
+    document.getElementById('interestForm').addEventListener('submit', function (e) {
       e.preventDefault();
-    
+  
       const data = {
         college: document.getElementById('collegeName').value,
         course: document.getElementById('courseSelect').value,
@@ -23868,45 +23886,45 @@ function doesCollegeMatchFees(collegeId, category, [min, max]) {
         email: document.getElementById('studentEmail').value,
         counselor: document.getElementById('counselorSelect').value
       };
-    
+  
       fetch('https://script.google.com/macros/s/AKfycbzX7DmQqhXt7tH16wI4KkmPoy5iMaBGGHA0feYTLxcCDZx9b1k4ehe7haR94M4grSUK/exec', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       })
-      .then(() => {
-        alert('Lead marked as interested!');
-        closeModal();
-      })
-      .catch((err) => {
-        alert('There was an error submitting the form.');
-        console.error(err);
-      });
+        .then(() => {
+          alert('Lead marked as interested!');
+          closeModal();
+        })
+        .catch((err) => {
+          alert('There was an error submitting the form.');
+          console.error(err);
+        });
     });
-    
+  
     document.addEventListener("DOMContentLoaded", () => {
       populateStates();
     });
-    
+  
     stateSelect.addEventListener("change", () => {
-  categorySelect.disabled = false;
-  populateCategories();
-  promptMessage.style.display = "block";
-  feesFilter.disabled = true;
-  updateCollegeList();
-});
-
-    
-categorySelect.addEventListener("change", () => {
-  promptMessage.style.display = "none";
-  feesFilter.disabled = false;
-  updateCollegeList();
-});
-
+      categorySelect.disabled = false;
+      populateCategories();
+      promptMessage.style.display = "block";
+      feesFilter.disabled = true;
+      updateCollegeList();
+    });
+  
+    categorySelect.addEventListener("change", () => {
+      promptMessage.style.display = "none";
+      feesFilter.disabled = false;
+      updateCollegeList();
+    });
+  
     searchBox.addEventListener("input", updateCollegeList);
     resetBtn.addEventListener("click", resetFilters);
     feesFilter.addEventListener("change", updateCollegeList);
-
-    </script>
+    btechOnlyCheckbox.addEventListener("change", updateCollegeList);
+  </script>
+  
 </body>
 </html>
